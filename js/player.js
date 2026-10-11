@@ -22,7 +22,7 @@ export class Player {
   constructor(scene) {
     this.pos = new THREE.Vector3(0, heightAt(0, 0), 0);
     this.vel = new THREE.Vector3();
-    this.yaw = 0;            // character facing
+    this.yaw = Math.PI;      // character facing (away from the default camera)
     // default view: camera above-behind, looking down at the survivor and the
     // ground ahead, so the crosshair naturally lands on trees/rocks while walking
     this.camYaw = 0; this.camPitch = 0.4;
@@ -163,13 +163,20 @@ export class Player {
   }
 
   // freeLook = true while the player holds ALT: camera stays where the mouse put it.
-  // Otherwise it eases back to the default follow angle (behind the survivor).
+  // Otherwise the pitch eases back to default, and the yaw eases back behind the
+  // survivor only while standing still. (Easing yaw while running makes the camera
+  // chase its own tail: the character turns with the camera, the camera turns with
+  // the character, spinning forever. While moving, WASD stays camera-relative.)
   updateCamera(camera, dt, freeLook = false) {
     if (!freeLook) {
-      let d = this.yaw - this.camYaw;
-      d = Math.atan2(Math.sin(d), Math.cos(d));
-      this.camYaw += d * Math.min(1, dt * 3.5);
       this.camPitch += (0.4 - this.camPitch) * Math.min(1, dt * 3.5);
+      if (Math.hypot(this.vel.x, this.vel.z) < 0.6) {
+        // behind the survivor: character faces (sin yaw, cos yaw), camera looks
+        // along (-sin cy, -cos cy), so "behind" means cy = yaw + PI
+        let d = (this.yaw + Math.PI) - this.camYaw;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        this.camYaw += d * Math.min(1, dt * 3.5);
+      }
     }
     const dist = 5.2;
     const cx = this.camYaw, cp = this.camPitch;
