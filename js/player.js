@@ -23,7 +23,9 @@ export class Player {
     this.pos = new THREE.Vector3(0, heightAt(0, 0), 0);
     this.vel = new THREE.Vector3();
     this.yaw = 0;            // character facing
-    this.camYaw = 0; this.camPitch = -0.25;
+    // default view: camera above-behind, looking down at the survivor and the
+    // ground ahead, so the crosshair naturally lands on trees/rocks while walking
+    this.camYaw = 0; this.camPitch = 0.4;
     this.onGround = true;
     this.walkPhase = 0;
     this.swingT = 0;         // tool swing animation 1 -> 0
@@ -32,32 +34,40 @@ export class Player {
     this.dead = false;
 
     const g = this.root = new THREE.Group();
+    const skin = 0xd8a878, jacket = 0xb45a2a, pants = 0x33404e, boots = 0x2a2018;
     // legs (pivot at hip)
-    this.legL = new THREE.Group(); this.legL.position.set(-0.12, 0.95, 0); g.add(this.legL);
-    this.legR = new THREE.Group(); this.legR.position.set(0.12, 0.95, 0); g.add(this.legR);
-    box(0.17, 0.9, 0.18, 0x3a4a5a, 0, -0.45, 0, this.legL);
-    box(0.17, 0.9, 0.18, 0x3a4a5a, 0, -0.45, 0, this.legR);
-    box(0.19, 0.1, 0.3, 0x2a2018, 0, -0.9, 0.04, this.legL); // boots
-    box(0.19, 0.1, 0.3, 0x2a2018, 0, -0.9, 0.04, this.legR);
+    this.legL = new THREE.Group(); this.legL.position.set(-0.11, 0.9, 0); g.add(this.legL);
+    this.legR = new THREE.Group(); this.legR.position.set(0.11, 0.9, 0); g.add(this.legR);
+    box(0.15, 0.82, 0.17, pants, 0, -0.41, 0, this.legL);
+    box(0.15, 0.82, 0.17, pants, 0, -0.41, 0, this.legR);
+    box(0.16, 0.1, 0.28, boots, 0, -0.85, 0.045, this.legL);
+    box(0.16, 0.1, 0.28, boots, 0, -0.85, 0.045, this.legR);
     // torso
-    box(0.46, 0.6, 0.26, 0x2a7a5a, 0, 1.28, 0, g);
-    box(0.48, 0.12, 0.28, 0x5a3a22, 0, 1.0, 0, g); // belt
+    box(0.42, 0.58, 0.26, jacket, 0, 1.2, 0, g);
+    box(0.44, 0.1, 0.28, 0x4a3020, 0, 0.93, 0, g); // belt
+    // backpack + bedroll (survivor look)
+    box(0.32, 0.42, 0.2, 0x6a4a2a, 0, 1.26, -0.22, g);
+    box(0.34, 0.12, 0.22, 0x8a7a5a, 0, 1.52, -0.22, g);
     // arms (pivot at shoulder)
-    this.armL = new THREE.Group(); this.armL.position.set(-0.31, 1.52, 0); g.add(this.armL);
-    this.armR = new THREE.Group(); this.armR.position.set(0.31, 1.52, 0); g.add(this.armR);
-    box(0.14, 0.58, 0.15, 0x2a7a5a, 0, -0.28, 0, this.armL);
-    box(0.14, 0.58, 0.15, 0x2a7a5a, 0, -0.28, 0, this.armR);
-    box(0.13, 0.14, 0.14, 0xd8a878, 0, -0.6, 0, this.armL); // hands
-    box(0.13, 0.14, 0.14, 0xd8a878, 0, -0.6, 0, this.armR);
-    // head
-    box(0.28, 0.3, 0.28, 0xd8a878, 0, 1.78, 0, g);
-    box(0.3, 0.1, 0.3, 0x4a3020, 0, 1.95, 0, g); // hair
+    this.armL = new THREE.Group(); this.armL.position.set(-0.29, 1.44, 0); g.add(this.armL);
+    this.armR = new THREE.Group(); this.armR.position.set(0.29, 1.44, 0); g.add(this.armR);
+    box(0.13, 0.52, 0.14, jacket, 0, -0.25, 0, this.armL);
+    box(0.13, 0.52, 0.14, jacket, 0, -0.25, 0, this.armR);
+    box(0.12, 0.13, 0.13, skin, 0, -0.56, 0, this.armL); // hands
+    box(0.12, 0.13, 0.13, skin, 0, -0.56, 0, this.armR);
+    // head with cap and eyes
+    const head = new THREE.Group(); head.position.set(0, 1.66, 0); g.add(head);
+    box(0.26, 0.28, 0.26, skin, 0, 0, 0, head);
+    box(0.045, 0.06, 0.02, 0x1a1a1a, -0.06, 0.02, 0.135, head);
+    box(0.045, 0.06, 0.02, 0x1a1a1a, 0.06, 0.02, 0.135, head);
+    box(0.3, 0.09, 0.3, 0x3a4a3a, 0, 0.17, -0.01, head); // cap
+    box(0.3, 0.03, 0.15, 0x3a4a3a, 0, 0.13, 0.19, head); // cap brim
     // starter axe in the right hand
     const axe = new THREE.Group();
-    axe.position.set(0, -0.62, 0.05); axe.rotation.x = 0.4;
+    axe.position.set(0, -0.58, 0.06); axe.rotation.x = 0.35;
     this.armR.add(axe);
     box(0.05, 0.7, 0.05, 0x6a4a2a, 0, 0.2, 0, axe);
-    box(0.06, 0.16, 0.22, 0x8a8a8a, 0, 0.5, 0.06, axe);
+    box(0.06, 0.15, 0.2, 0x9a9a9a, 0, 0.5, 0.05, axe);
     this.axe = axe;
 
     this.root.position.copy(this.pos);
