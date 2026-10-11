@@ -221,20 +221,17 @@ export class Player {
   }
 
   // freeLook = true while the player holds ALT: camera stays where the mouse put it.
-  // Otherwise the pitch eases back to default, and the yaw eases back behind the
-  // survivor only while standing still. (Easing yaw while running makes the camera
-  // chase its own tail: the character turns with the camera, the camera turns with
-  // the character, spinning forever.)
+  // Otherwise the camera eases back behind the survivor — even while moving,
+  // because yaw is driven directly by A/D steering (not derived from the camera),
+  // so the follow can't chase its own tail.
   updateCamera(camera, dt, freeLook = false) {
     if (!freeLook) {
       this.camPitch += (0.4 - this.camPitch) * Math.min(1, dt * 3.5);
-      if (Math.hypot(this.vel.x, this.vel.z) < 0.6) {
-        // behind the survivor: character faces (sin yaw, cos yaw), camera looks
-        // along (-sin cy, -cos cy), so "behind" means cy = yaw + PI
-        let d = (this.yaw + Math.PI) - this.camYaw;
-        d = Math.atan2(Math.sin(d), Math.cos(d));
-        this.camYaw += d * Math.min(1, dt * 3.5);
-      }
+      // behind the survivor: character faces (sin yaw, cos yaw), camera looks
+      // along (-sin cy, -cos cy), so "behind" means cy = yaw + PI
+      let d = (this.yaw + Math.PI) - this.camYaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.camYaw += d * Math.min(1, dt * 3.5);
     }
     const dist = 5.2;
     const cx = this.camYaw, cp = this.camPitch;
