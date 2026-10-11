@@ -39,39 +39,90 @@ ui.refreshInv(player.inv);
 
 // ---------------- input ----------------
 const input = { keys: new Set(), jump: false };
-let locked = false;
+let locked = false;    // pointer-lock mode
+let lockless = false;  // fallback mode: drag mouse to look (no pointer lock)
+const startOverlay = document.getElementById('start');
+const lockPill = document.getElementById('lockstate');
+
+function refreshOverlay() {
+  startOverlay.classList.toggle('hidden', locked || lockless);
+  lockPill.textContent = locked ? '🔒' : lockless ? '✋ kéo chuột để xoay' : '🔓';
+  lockPill.title = locked ? 'Chuột đã khóa' : lockless ? 'Chế độ kéo chuột' : 'Chuột chưa khóa — bấm vào màn hình';
+}
+
 addEventListener('keydown', (e) => {
   if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
   input.keys.add(e.code);
   if (e.code === 'Space') input.jump = true;
   if (e.code === 'KeyE') gather.strike();
   if (e.code === 'KeyF' && player.eatBerry()) { ui.refreshInv(player.inv); ui.toast('Ăn quả mọng: +22 độ no'); }
+  if (e.code === 'Escape' && lockless) { lockless = false; refreshOverlay(); } // back to menu
 });
 addEventListener('keyup', (e) => input.keys.delete(e.code));
-addEventListener('mousedown', (e) => { if (locked && e.button === 0) gather.strike(); });
+
+// pointer-lock mode: click strikes
+canvas.addEventListener('mousedown', (e) => { if (locked && e.button === 0) gather.strike(); });
+
+// lockless mode: drag to look, quick click strikes
+let dragging = false, dragMoved = 0, lx = 0, ly = 0;
+canvas.addEventListener('mousedown', (e) => {
+  if (!locked && lockless && e.button === 0) { dragging = true; dragMoved = 0; lx = e.clientX; ly = e.clientY; }
+});
+addEventListener('mouseup', (e) => {
+  if (!locked && lockless && dragging && e.button === 0) {
+    dragging = false;
+    if (dragMoved < 6) gather.strike();
+  }
+});
+
+const clampDelta = (v) => Number.isFinite(v) ? THREE.MathUtils.clamp(v, -80, 80) : 0;
 addEventListener('mousemove', (e) => {
-  if (!locked) return;
-  player.camYaw -= e.movementX * 0.0024;
-  player.camPitch = THREE.MathUtils.clamp(player.camPitch - e.movementY * 0.0024, -1.15, 0.9);
+  if (locked) {
+    // pointer-lock deltas: clamp each event so a spike can't whip the camera around
+    let dx = e.movementX, dy = e.movementY;
+    if (e.getCoalescedEvents) {
+      const evs = e.getCoalescedEvents();
+      if (evs.length > 1) { dx = 0; dy = 0; for (const c of evs) { dx += c.movementX || 0; dy += c.movementY || 0; } }
+    }
+    player.camYaw -= clampDelta(dx) * 0.0024;
+    player.camPitch = THREE.MathUtils.clamp(player.camPitch - clampDelta(dy) * 0.0024, -1.15, 0.9);
+    return;
+  }
+  if (lockless && dragging) {
+    const dx = e.clientX - lx, dy = e.clientY - ly;
+    lx = e.clientX; ly = e.clientY;
+    dragMoved += Math.abs(dx) + Math.abs(dy);
+    if (Number.isFinite(dx + dy)) {
+      player.camYaw -= dx * 0.0042;
+      player.camPitch = THREE.MathUtils.clamp(player.camPitch - dy * 0.0042, -1.15, 0.9);
+    }
+  }
 });
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas;
-  document.getElementById('start').classList.toggle('hidden', locked);
+  refreshOverlay();
 });
 document.addEventListener('pointerlockerror', () => {
-  ui.toast('Trình duyệt chặn khóa chuột — hãy bấm lại vào màn hình');
+  ui.toast('Trình duyệt chặn khóa chuột — hãy bấm "Chơi không khóa chuột"');
 });
+refreshOverlay();
 // NOTE: the #start overlay covers the canvas, so the click-to-play handler must
 // live on the overlay too (a canvas-only listener never fires while it is up).
 function lockPointer() {
-  if (locked) return;
+  if (locked || lockless) return;
   try {
     const p = canvas.requestPointerLock();
-    if (p && p.catch) p.catch(() => ui.toast('Không khóa được chuột — hãy bấm lại lần nữa'));
+    if (p && p.catch) p.catch(() => ui.toast('Không khóa được chuột — hãy bấm "Chơi không khóa chuột"'));
   } catch { /* older browsers: ignore */ }
 }
 canvas.addEventListener('click', lockPointer);
-document.getElementById('start').addEventListener('click', lockPointer);
+startOverlay.addEventListener('click', lockPointer);
+document.getElementById('btn-lockless').addEventListener('click', (e) => {
+  e.stopPropagation(); // don't trigger the overlay's lockPointer
+  lockless = true;
+  refreshOverlay();
+  ui.toast('Chế độ kéo chuột: giữ chuột trái và kéo để xoay camera, bấm nhanh để thu thập, ESC để về menu');
+});
 document.getElementById('btn-respawn').addEventListener('click', () => {
   player.respawn(); ui.hideDeath(); ui.refreshInv(player.inv);
 });
@@ -118,6 +169,9 @@ function frame() {
   const time = clock.elapsedTime;
 
   player.update(dt, input, world, time);
+  // defensive: a single bad mouse event must never corrupt the camera forever
+  if (!Number.isFinite(player.camYaw)) player.camYaw = 0;
+  if (!Number.isFinite(player.camPitch)) player.camPitch = 0.4;
   player.updateCamera(camera, dt);
   world.update(dt, time);
   gather.update(dt);
