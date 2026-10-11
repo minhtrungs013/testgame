@@ -37,44 +37,97 @@ const ui = new UI();
 const gather = new Gather(scene, world, player, ui, camera);
 ui.refreshInv(player.inv);
 
-// ---------------- input & camera scheme ----------------
-// Default: the camera follows behind the survivor at a fixed pleasant angle.
-// Hold ALT + move the mouse for a temporary free look; releasing ALT eases the
-// camera back to the default angle. No pointer lock needed.
+// ---------------- input: pointer-lock mouse look + drag fallback ----------------
 const input = { keys: new Set(), jump: false };
+let locked = false;    // pointer-lock mode
+let lockless = false;  // fallback: hold left mouse and drag to look (no pointer lock)
 const startOverlay = document.getElementById('start');
-let altHeld = false, lastMX = 0, lastMY = 0, lookLX = 0, lookLY = 0;
+const lockPill = document.getElementById('lockstate');
+
+function refreshOverlay() {
+  startOverlay.classList.toggle('hidden', locked || lockless);
+  lockPill.textContent = locked ? '🔒' : lockless ? '✋ kéo chuột để xoay' : '🔓';
+  lockPill.title = locked ? 'Chuột đã khóa' : lockless ? 'Chế độ kéo chuột' : 'Chuột chưa khóa — bấm vào màn hình';
+}
 
 addEventListener('keydown', (e) => {
-  if (['Space', 'ArrowUp', 'ArrowDown', 'AltLeft', 'AltRight'].includes(e.code)) e.preventDefault();
+  if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
   input.keys.add(e.code);
   if (e.code === 'Space') input.jump = true;
   if (e.code === 'KeyE') gather.strike();
   if (e.code === 'KeyF' && player.eatBerry()) { ui.refreshInv(player.inv); ui.toast('Ăn quả mọng: +22 độ no'); }
-  if (e.code === 'Escape') startOverlay.classList.remove('hidden'); // pause menu
-  if ((e.code === 'AltLeft' || e.code === 'AltRight') && !altHeld) {
-    altHeld = true; lookLX = lastMX; lookLY = lastMY;
-  }
+  if (e.code === 'Escape' && lockless) { lockless = false; refreshOverlay(); } // back to menu
 });
-addEventListener('keyup', (e) => {
-  input.keys.delete(e.code);
-  if (e.code === 'AltLeft' || e.code === 'AltRight') altHeld = false;
-});
-addEventListener('blur', () => { altHeld = false; });
+addEventListener('keyup', (e) => input.keys.delete(e.code));
 
 const playing = () => startOverlay.classList.contains('hidden') && !player.dead;
-canvas.addEventListener('mousedown', (e) => { if (e.button === 0 && playing()) gather.strike(); });
-startOverlay.addEventListener('click', () => startOverlay.classList.add('hidden'));
+// pointer-lock mode: click strikes
+canvas.addEventListener('mousedown', (e) => { if (locked && e.button === 0 && playing()) gather.strike(); });
 
+// lockless mode: drag to look, quick click strikes
+let dragging = false, dragMoved = 0, lx = 0, ly = 0;
+canvas.addEventListener('mousedown', (e) => {
+  if (!locked && lockless && e.button === 0) { dragging = true; dragMoved = 0; lx = e.clientX; ly = e.clientY; }
+});
+addEventListener('mouseup', (e) => {
+  if (!locked && lockless && dragging && e.button === 0) {
+    dragging = false;
+    if (dragMoved < 6 && playing()) gather.strike();
+  }
+});
+
+const clampDelta = (v) => Number.isFinite(v) ? THREE.MathUtils.clamp(v, -80, 80) : 0;
 addEventListener('mousemove', (e) => {
-  lastMX = e.clientX; lastMY = e.clientY;
-  if (!altHeld || !playing()) return;
-  const dx = e.clientX - lookLX, dy = e.clientY - lookLY;
-  lookLX = e.clientX; lookLY = e.clientY;
-  if (!Number.isFinite(dx + dy)) return;
-  const cdx = THREE.MathUtils.clamp(dx, -80, 80), cdy = THREE.MathUtils.clamp(dy, -80, 80);
-  player.camYaw -= cdx * 0.0042;
-  player.camPitch = THREE.MathUtils.clamp(player.camPitch - cdy * 0.0042, -1.15, 0.9);
+  if (locked) {
+    // pointer-lock deltas: clamp each event so a spike can't whip the camera around
+    let dx = e.movementX, dy = e.movementY;
+    if (e.getCoalescedEvents) {
+      const evs = e.getCoalescedEvents();
+      if (evs.length > 1) { dx = 0; dy = 0; for (const c of evs) { dx += c.movementX || 0; dy += c.movementY || 0; } }
+    }
+    player.camYaw -= clampDelta(dx) * 0.0024;
+    player.camPitch = THREE.MathUtils.clamp(player.camPitch - clampDelta(dy) * 0.0024, -1.15, 0.9);
+    return;
+  }
+  if (lockless && dragging) {
+    const dx = e.clientX - lx, dy = e.clientY - ly;
+    lx = e.clientX; ly = e.clientY;
+    dragMoved += Math.abs(dx) + Math.abs(dy);
+    if (Number.isFinite(dx + dy)) {
+      player.camYaw -= dx * 0.0042;
+      player.camPitch = THREE.MathUtils.clamp(player.camPitch - dy * 0.0042, -1.15, 0.9);
+    }
+  }
+});
+document.addEventListener('pointerlockchange', () => {
+  locked = document.pointerLockElement === canvas;
+  refreshOverlay();
+});
+document.addEventListener('pointerlockerror', () => {
+  ui.toast('Trình duyệt chặn khóa chuột — hãy bấm "Chơi không khóa chuột"');
+});
+refreshOverlay();
+
+// NOTE: the #start overlay covers the canvas, so the click-to-play handler must
+// live on the overlay too (a canvas-only listener never fires while it is up).
+function lockPointer() {
+  if (locked || lockless) return;
+  try {
+    const p = canvas.requestPointerLock();
+    if (p && p.catch) p.catch(() => ui.toast('Không khóa được chuột — hãy bấm "Chơi không khóa chuột"'));
+  } catch { /* older browsers: ignore */ }
+}
+function resumeGame() {
+  if (lockless) { startOverlay.classList.add('hidden'); return; } // resume drag mode
+  lockPointer();
+}
+canvas.addEventListener('click', resumeGame);
+startOverlay.addEventListener('click', resumeGame);
+document.getElementById('btn-lockless').addEventListener('click', (e) => {
+  e.stopPropagation(); // don't trigger the overlay's resumeGame
+  lockless = true;
+  refreshOverlay();
+  ui.toast('Chế độ kéo chuột: giữ chuột trái và kéo để xoay camera, bấm nhanh để thu thập, ESC để về menu');
 });
 
 document.getElementById('btn-respawn').addEventListener('click', () => {
@@ -126,7 +179,7 @@ function frame() {
   // defensive: a single bad mouse event must never corrupt the camera forever
   if (!Number.isFinite(player.camYaw)) player.camYaw = 0;
   if (!Number.isFinite(player.camPitch)) player.camPitch = 0.4;
-  player.updateCamera(camera, dt, altHeld);
+  player.updateCamera(camera, dt);
   world.update(dt, time);
   gather.update(dt);
   updateDayNight(dt);
@@ -136,7 +189,7 @@ function frame() {
 
   // first-time hints
   toastT += dt;
-  if (toastT > 1 && !frame.h1) { frame.h1 = 1; ui.toast('Dùng WASD để di chuyển, giữ ALT + di chuột để nhìn xung quanh'); }
+  if (toastT > 1 && !frame.h1) { frame.h1 = 1; ui.toast('Dùng WASD để di chuyển, chuột để nhìn xung quanh'); }
   if (toastT > 6 && !frame.h2) { frame.h2 = 1; ui.toast('Nhắm vào cây/đá rồi nhấn E (hoặc chuột trái) để thu thập'); }
 
   renderer.render(scene, camera);
