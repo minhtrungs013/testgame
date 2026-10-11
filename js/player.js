@@ -162,7 +162,15 @@ export class Player {
     this.root.rotation.y = this.yaw;
   }
 
-  updateCamera(camera, dt) {
+  // freeLook = true while the player holds ALT: camera stays where the mouse put it.
+  // Otherwise it eases back to the default follow angle (behind the survivor).
+  updateCamera(camera, dt, freeLook = false) {
+    if (!freeLook) {
+      let d = this.yaw - this.camYaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.camYaw += d * Math.min(1, dt * 3.5);
+      this.camPitch += (0.4 - this.camPitch) * Math.min(1, dt * 3.5);
+    }
     const dist = 5.2;
     const cx = this.camYaw, cp = this.camPitch;
     const fx = -Math.sin(cx) * Math.cos(cp), fz = -Math.cos(cx) * Math.cos(cp), fy = -Math.sin(cp);
