@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { heightAt } from './noise.js';
 
 // ---------------------------------------------------------------------------
-// Third-person survivor: low-poly humanoid, WASD + mouse orbit (pointer lock),
-// walk/run/jump, simple procedural walk animation + tool swing.
+// Third-person survivor: low-poly humanoid, W/S move + A/D steer,
+// ALT + mouse free-look, walk/run/jump, procedural walk/run animation
+// (knees, elbows, torso lean) + tool swing.
 // ---------------------------------------------------------------------------
 
 export const WALK_SPEED = 4.5, RUN_SPEED = 7.5;
@@ -138,9 +139,12 @@ export class Player {
     if (canRun) this.stamina = Math.max(0, this.stamina - dt * 14);
     else this.stamina = Math.min(100, this.stamina + dt * (f || r ? 8 : 16));
 
-    // camera-relative movement: W = away from camera, A/D = strafe
-    const sin = Math.sin(this.camYaw), cos = Math.cos(this.camYaw);
-    const wish = new THREE.Vector3((-sin * f + cos * r), 0, (-cos * f - sin * r));
+    // A/D steer the survivor (turn left/right); W/S move forward/backward along
+    // the facing direction. The camera follows behind, so steering feels like
+    // driving and the survivor always faces where it is turning.
+    const TURN_RATE = 2.8;
+    this.yaw -= r * TURN_RATE * dt;
+    const wish = new THREE.Vector3(Math.sin(this.yaw) * f, 0, Math.cos(this.yaw) * f);
     if (wish.lengthSq() > 0) wish.normalize();
     const accel = this.onGround ? 26 : 8;
     this.vel.x += (wish.x * speed - this.vel.x) * Math.min(1, dt * accel / Math.max(1, speed));
@@ -162,14 +166,9 @@ export class Player {
     const rr = Math.hypot(this.pos.x, this.pos.z);
     if (rr > 122) { this.pos.x *= 122 / rr; this.pos.z *= 122 / rr; }
 
-    // --- facing: turn smoothly toward the movement direction ---
+    // --- facing ---
+    // yaw is driven directly by A/D steering above, so no velocity-facing needed
     const hSpeed = Math.hypot(this.vel.x, this.vel.z);
-    if (hSpeed > 0.6) {
-      const want = Math.atan2(this.vel.x, this.vel.z);
-      let d = want - this.yaw;
-      d = Math.atan2(Math.sin(d), Math.cos(d));
-      this.yaw += d * Math.min(1, dt * 10);
-    }
 
     // --- vitals ---
     this.hunger = Math.max(0, this.hunger - dt * 0.22);
@@ -221,9 +220,22 @@ export class Player {
     this.root.rotation.y = this.yaw;
   }
 
-  // mouse-look camera (pointer lock or drag fallback); no auto-follow — the
-  // player aims the camera, WASD moves relative to it
-  updateCamera(camera, dt) {
+  // freeLook = true while the player holds ALT: camera stays where the mouse put it.
+  // Otherwise the pitch eases back to default, and the yaw eases back behind the
+  // survivor only while standing still. (Easing yaw while running makes the camera
+  // chase its own tail: the character turns with the camera, the camera turns with
+  // the character, spinning forever.)
+  updateCamera(camera, dt, freeLook = false) {
+    if (!freeLook) {
+      this.camPitch += (0.4 - this.camPitch) * Math.min(1, dt * 3.5);
+      if (Math.hypot(this.vel.x, this.vel.z) < 0.6) {
+        // behind the survivor: character faces (sin yaw, cos yaw), camera looks
+        // along (-sin cy, -cos cy), so "behind" means cy = yaw + PI
+        let d = (this.yaw + Math.PI) - this.camYaw;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        this.camYaw += d * Math.min(1, dt * 3.5);
+      }
+    }
     const dist = 5.2;
     const cx = this.camYaw, cp = this.camPitch;
     const fx = -Math.sin(cx) * Math.cos(cp), fz = -Math.cos(cx) * Math.cos(cp), fy = -Math.sin(cp);

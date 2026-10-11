@@ -3,7 +3,7 @@
 Game 3D sinh tồn góc nhìn thứ 3 (Three.js, chạy trực tiếp trên trình duyệt, không cần build).
 
 ## Giai đoạn 1 (hiện tại)
-- Nhân vật thứ 3: WASD di chuyển (theo hướng camera), chuột xoay camera (pointer lock, có chế độ kéo-chuột dự phòng), Shift chạy nhanh, Space nhảy; animation đi/chạy procedural với khớp gối, khuỷu tay và nghiêng người
+- Nhân vật thứ 3: W/S tiến/lùi, A/D rẽ trái/phải, camera tự bám sau lưng; giữ ALT + di chuột để nhìn tự do (thả ra để về góc mặc định), Shift chạy nhanh, Space nhảy
 - Thế giới: đồi cỏ, 130 cây, 55 tảng đá, 42 bụi quả mọng
 - Thu thập: nhắm vào cây/đá/bụi → **E** hoặc **chuột trái**
   - 🪵 Chặt cây → Gỗ (cây đổ và mọc lại sau 60s)
