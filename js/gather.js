@@ -13,7 +13,6 @@ export class Gather {
     this.scene = scene; this.world = world; this.player = player;
     this.ui = ui; this.camera = camera;
     this.cool = 0; this.target = null; this.pendingHit = 0;
-    this._fwd = new THREE.Vector3(); this._to = new THREE.Vector3();
     this._buildParticles();
   }
 
@@ -60,25 +59,26 @@ export class Gather {
     if (dirty) this.pMesh.instanceMatrix.needsUpdate = true;
   }
 
-  // pick the node the player is looking at (camera-center, within reach)
+  // pick the nearest node in front of the character (no precise camera aiming needed:
+  // just walk up to a tree/rock facing it and the prompt appears)
   _findTarget() {
-    this.camera.getWorldDirection(this._fwd);
-    let best = null, bestScore = 0.86; // cos(~30°)
-    const consider = (kind, i, x, y, z, alive) => {
-      if (!alive) return;
-      this._to.set(x - this.camera.position.x, y - this.camera.position.y, z - this.camera.position.z);
-      const dist = this._to.length();
-      if (dist > REACH + 2.2) return;
-      this._to.normalize();
-      const score = this._to.dot(this._fwd) - dist * 0.012;
-      if (score > bestScore) { bestScore = score; best = { kind, i, x, y, z }; }
+    const p = this.player;
+    const fx = Math.sin(p.yaw), fz = Math.cos(p.yaw); // character facing
+    let best = null, bestD = REACH;
+    const consider = (kind, i, x, y, z, ok) => {
+      if (!ok) return;
+      const dx = x - p.pos.x, dz = z - p.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d > REACH || d >= bestD) return;
+      // roughly in front of the character (very close nodes count from any side)
+      const dot = d > 0.001 ? (dx * fx + dz * fz) / d : 1;
+      if (dot < 0.2 && d > 1.2) return;
+      bestD = d; best = { kind, i, x, y, z };
     };
     const w = this.world;
     w.trees.forEach((t, i) => consider('tree', i, t.x, t.y + 2.2 * t.s, t.z, t.alive));
     w.rocks.forEach((r, i) => consider('rock', i, r.x, r.y + 0.8 * r.s, r.z, r.alive));
     w.bushes.forEach((b, i) => consider('bush', i, b.x, b.y + 0.6, b.z, b.berries > 0));
-    // also require the player (not just the camera) to be close
-    if (best && Math.hypot(best.x - this.player.pos.x, best.z - this.player.pos.z) > REACH) return null;
     return best;
   }
 
