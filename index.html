@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Testgame — Sinh tồn</title>
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="vitals">
+    <div class="bar"><span class="label">❤️</span><div class="track"><div id="hp-fill" class="fill hp"></div></div></div>
+    <div class="bar"><span class="label">🍖</span><div class="track"><div id="hunger-fill" class="fill hunger"></div></div></div>
+    <div class="bar"><span class="label">⚡</span><div class="track"><div id="st-fill" class="fill st"></div></div></div>
+  </div>
+  <div id="clock">Ngày 1 — 06:00</div>
+  <div id="inv">
+    <div class="slot">🪵 <span id="inv-wood">0</span></div>
+    <div class="slot">🪨 <span id="inv-stone">0</span></div>
+    <div class="slot">🫐 <span id="inv-berry">0</span><em>F: ăn</em></div>
+  </div>
+</div>
+<div id="crosshair">+</div>
+<div id="prompt"></div>
+<div id="toasts"></div>
+<div id="float-layer"></div>
+
+<!-- start overlay -->
+<div id="start">
+  <div class="panel">
+    <h1>🏕️ SINH TỒN</h1>
+    <p>Giai đoạn 1: khám phá, chặt cây, đập đá, hái quả.<br>Đừng để bị đói!</p>
+    <div class="controls">
+      <div><b>WASD</b> di chuyển</div>
+      <div><b>Chuột</b> nhìn xung quanh</div>
+      <div><b>Shift</b> chạy nhanh</div>
+      <div><b>Space</b> nhảy</div>
+      <div><b>E</b> / <b>Chuột trái</b> thu thập</div>
+      <div><b>F</b> ăn quả mọng</div>
+    </div>
+    <p class="hint">Bấm vào màn hình để bắt đầu (khóa chuột)</p>
+  </div>
+</div>
+
+<!-- death overlay -->
+<div id="death" class="hidden">
+  <div class="panel">
+    <h1>💀 BẠN ĐÃ CHẾT</h1>
+    <p>Cơn đói đã quật ngã bạn...</p>
+    <button id="btn-respawn">Hồi sinh</button>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

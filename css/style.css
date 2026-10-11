@@ -1,0 +1,63 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
+  font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; }
+#game { width: 100%; height: 100%; display: block; }
+
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+#vitals { position: absolute; top: 14px; left: 14px; display: flex; flex-direction: column; gap: 6px; }
+.bar { display: flex; align-items: center; gap: 6px; }
+.bar .label { font-size: 15px; width: 22px; text-align: center; filter: drop-shadow(0 1px 2px #000); }
+.track { width: 190px; height: 13px; background: rgba(0,0,0,.55); border-radius: 7px;
+  border: 1px solid rgba(255,255,255,.25); overflow: hidden; }
+.fill { height: 100%; border-radius: 6px; transition: width .25s; }
+.fill.hp { background: linear-gradient(90deg, #e04040, #ff7043); }
+.fill.hunger { background: linear-gradient(90deg, #e09a3a, #ffca28); }
+.fill.st { background: linear-gradient(90deg, #3a9ae0, #4dd0e1); }
+.fill.low { animation: blink .7s infinite alternate; }
+@keyframes blink { from { filter: brightness(1); } to { filter: brightness(1.7); } }
+
+#clock { position: absolute; top: 14px; right: 16px; color: #fff; font-size: 15px;
+  background: rgba(0,0,0,.5); padding: 7px 14px; border-radius: 18px; border: 1px solid rgba(255,255,255,.2); }
+
+#inv { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 10px; }
+.slot { background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.25); color: #fff;
+  font-size: 17px; padding: 8px 14px; border-radius: 10px; min-width: 74px; text-align: center; }
+.slot em { display: block; font-style: normal; font-size: 10px; color: #aaa; }
+
+#crosshair { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  color: rgba(255,255,255,.85); font-size: 22px; z-index: 5; pointer-events: none;
+  text-shadow: 0 1px 3px #000; }
+#prompt { position: fixed; left: 50%; top: calc(50% + 34px); transform: translateX(-50%);
+  color: #fff; font-size: 15px; background: rgba(0,0,0,.6); padding: 7px 16px;
+  border-radius: 16px; z-index: 5; pointer-events: none; opacity: 0; transition: opacity .15s;
+  border: 1px solid rgba(255,255,255,.2); white-space: nowrap; }
+#prompt b { color: #ffd23a; }
+
+#toasts { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 6; pointer-events: none; }
+.toast { background: rgba(20,20,20,.82); color: #ffe9a8; font-size: 14px; padding: 9px 18px;
+  border-radius: 18px; border: 1px solid rgba(255,210,58,.4); animation: toastIn .3s; max-width: 80vw; }
+.toast.out { opacity: 0; transition: opacity .4s; }
+@keyframes toastIn { from { transform: translateY(10px); opacity: 0; } }
+
+#float-layer { position: fixed; inset: 0; pointer-events: none; z-index: 6; overflow: hidden; }
+.float-txt { position: absolute; transform: translate(-50%,-50%); font-size: 17px; font-weight: 700;
+  text-shadow: 0 2px 4px #000; animation: floatUp 1s forwards; white-space: nowrap; }
+@keyframes floatUp { to { transform: translate(-50%,-160%); opacity: 0; } }
+
+#start, #death { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center;
+  justify-content: center; background: rgba(5,10,5,.72); backdrop-filter: blur(3px); }
+#start.hidden, #death.hidden { display: none; }
+.panel { background: rgba(15,25,15,.92); border: 1px solid #4a7a3a; border-radius: 16px;
+  padding: 36px 48px; text-align: center; color: #e8f0e0; max-width: 440px; }
+.panel h1 { font-size: 34px; margin-bottom: 12px; letter-spacing: 2px; }
+.panel p { color: #b8c8a8; margin-bottom: 16px; line-height: 1.6; }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; text-align: left;
+  font-size: 14px; color: #cfe0c0; margin-bottom: 18px; }
+.controls b { color: #ffd23a; background: rgba(255,210,58,.12); padding: 1px 7px; border-radius: 5px;
+  border: 1px solid rgba(255,210,58,.35); }
+.hint { font-size: 13px; color: #8aa078; animation: blink 1.2s infinite alternate; }
+#btn-respawn { font-size: 17px; padding: 12px 38px; border: none; border-radius: 10px;
+  background: #4a9a3a; color: #fff; cursor: pointer; font-weight: 700; }
+#btn-respawn:hover { background: #5aaa4a; }
