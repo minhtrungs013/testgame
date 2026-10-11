@@ -58,7 +58,20 @@ document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas;
   document.getElementById('start').classList.toggle('hidden', locked);
 });
-canvas.addEventListener('click', () => { if (!locked) canvas.requestPointerLock(); });
+document.addEventListener('pointerlockerror', () => {
+  ui.toast('Trình duyệt chặn khóa chuột — hãy bấm lại vào màn hình');
+});
+// NOTE: the #start overlay covers the canvas, so the click-to-play handler must
+// live on the overlay too (a canvas-only listener never fires while it is up).
+function lockPointer() {
+  if (locked) return;
+  try {
+    const p = canvas.requestPointerLock();
+    if (p && p.catch) p.catch(() => ui.toast('Không khóa được chuột — hãy bấm lại lần nữa'));
+  } catch { /* older browsers: ignore */ }
+}
+canvas.addEventListener('click', lockPointer);
+document.getElementById('start').addEventListener('click', lockPointer);
 document.getElementById('btn-respawn').addEventListener('click', () => {
   player.respawn(); ui.hideDeath(); ui.refreshInv(player.inv);
 });
